@@ -209,16 +209,4 @@ tests/             pytest suite, fully offline
 scripts/           ingest + CLI demo helpers
 ```
 
-## What I'd build next
 
-- Cross-encoder reranking as a second-stage filter on the RRF-fused top-K,
-  before generation — RRF gets you a good candidate set fast, but a
-  reranker would sharpen precision on ambiguous queries.
-- An LLM-as-judge faithfulness score (a second Claude call comparing the
-  answer against retrieved context) as a fourth eval metric, complementing
-  the deterministic groundedness check with a semantic one.
-- Slack integration so `/ask` and the refusal-driven feedback loop live
-  where on-call engineers already are during an incident.
-- Auto-promotion of thumbs-down feedback traces into the golden eval set
-  after human triage, so the eval suite grows with real usage instead of
-  staying fixed at 10 hand-written questions.
