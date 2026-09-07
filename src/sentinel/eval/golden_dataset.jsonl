@@ -1,0 +1,10 @@
+{"id": "q1", "question": "The API is returning 502 errors and the pods keep restarting. What should I check first?", "expected_doc_ids_contains": ["pod-crashloop"], "category": "runbook", "expect_refusal": false}
+{"id": "q2", "question": "Our database connection pool is exhausted during peak traffic. What's the remediation?", "expected_doc_ids_contains": ["db-connection-pool"], "category": "runbook", "expect_refusal": false}
+{"id": "q3", "question": "What caused the checkout service outage on the postmortem from last quarter, and what was the follow-up action?", "expected_doc_ids_contains": ["checkout-outage-postmortem"], "category": "postmortem", "expect_refusal": false}
+{"id": "q4", "question": "How do I authenticate against the internal billing API?", "expected_doc_ids_contains": ["billing-api"], "category": "api_doc", "expect_refusal": false}
+{"id": "q5", "question": "What is the maximum retry backoff for the notifications API?", "expected_doc_ids_contains": ["notifications-api"], "category": "api_doc", "expect_refusal": false}
+{"id": "q6", "question": "What's the best pizza topping combination for the on-call team's Friday order?", "expected_doc_ids_contains": [], "category": "out_of_scope", "expect_refusal": true}
+{"id": "q7", "question": "Our Kubernetes pods are stuck in CrashLoopBackOff after a deploy, what are the diagnostic steps?", "expected_doc_ids_contains": ["pod-crashloop"], "category": "runbook", "expect_refusal": false}
+{"id": "q8", "question": "What was the root cause of the third-party payment provider incident and how long was the resolution time?", "expected_doc_ids_contains": ["payment-provider-postmortem"], "category": "postmortem", "expect_refusal": false}
+{"id": "q9", "question": "What rate limit does the search API enforce per API key?", "expected_doc_ids_contains": ["search-api"], "category": "api_doc", "expect_refusal": false}
+{"id": "q10", "question": "Can you approve my PTO request for next week?", "expected_doc_ids_contains": [], "category": "out_of_scope", "expect_refusal": true}

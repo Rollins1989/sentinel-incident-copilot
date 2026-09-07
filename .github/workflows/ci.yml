@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-eval:
+    runs-on: ubuntu-latest
+    env:
+      LLM_PROVIDER: mock
+      EMBEDDING_PROVIDER: hashing
+      CHROMA_PERSIST_DIR: .chroma_ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: |
+          PYTHONPATH=src pytest tests/ -v
+
+      - name: Ingest seed corpus
+        run: |
+          PYTHONPATH=src python scripts/ingest_seed_data.py
+
+      - name: Run eval gate
+        run: |
+          PYTHONPATH=src python -m sentinel.eval.run_eval
+        # Fails the build (non-zero exit) if retrieval recall, refusal accuracy,
+        # or groundedness rate drop below the thresholds in eval/run_eval.py.
+        # This is the actual regression gate for prompt/retrieval/model changes.
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval_report.json

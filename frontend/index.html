@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sentinel — Incident Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0E14;
+    --surface: #10151D;
+    --surface-2: #151B25;
+    --border: #212A38;
+    --text: #E6EAF0;
+    --muted: #7C8798;
+    --ok: #4FD1A5;
+    --warn: #F0A868;
+    --link: #6FA8DC;
+    --danger: #E0665A;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: 100vh;
+  }
+  @media (max-width: 780px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-mark {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 8px var(--ok);
+  }
+  .brand-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px; letter-spacing: 0.02em;
+  }
+  .brand-sub {
+    font-size: 12px; color: var(--muted); margin-top: 2px;
+  }
+
+  .status-block { font-size: 12px; color: var(--muted); }
+  .status-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .status-row span:last-child { color: var(--text); font-family: 'IBM Plex Mono', monospace; }
+
+  .examples-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .example-q {
+    display: block; width: 100%; text-align: left;
+    background: none; border: 1px solid var(--border); color: var(--text);
+    font-size: 13px; padding: 10px 12px; border-radius: 4px; margin-bottom: 8px;
+    cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; line-height: 1.4;
+  }
+  .example-q:hover { border-color: var(--link); color: var(--link); }
+
+  .main { display: flex; flex-direction: column; height: 100vh; }
+  .thread {
+    flex: 1; overflow-y: auto; padding: 32px 40px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .empty-state {
+    margin: auto; text-align: center; max-width: 440px; color: var(--muted);
+  }
+  .empty-state h1 {
+    font-family: 'IBM Plex Mono', monospace; font-size: 20px; color: var(--text);
+    font-weight: 500; margin-bottom: 10px;
+  }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  .msg-user {
+    align-self: flex-end; max-width: 70%;
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 12px 16px; border-radius: 6px; font-size: 14px;
+  }
+  .msg-block {
+    max-width: 78%; align-self: flex-start;
+    border-left: 3px solid var(--ok);
+    background: var(--surface); border-radius: 4px;
+    padding: 16px 18px;
+  }
+  .msg-block.refused { border-left-color: var(--warn); }
+  .msg-block.ungrounded { border-left-color: var(--danger); }
+
+  .msg-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace;
+  }
+  .tag {
+    padding: 2px 7px; border-radius: 3px; font-size: 10.5px;
+    border: 1px solid var(--border);
+  }
+  .tag.ok { color: var(--ok); border-color: var(--ok); }
+  .tag.warn { color: var(--warn); border-color: var(--warn); }
+  .tag.danger { color: var(--danger); border-color: var(--danger); }
+
+  .msg-body { font-size: 14.5px; line-height: 1.65; white-space: pre-wrap; }
+
+  .citations {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .citation-chip {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 4px 8px; border-radius: 3px; color: var(--link);
+  }
+  .citation-chip .src { color: var(--muted); }
+
+  .composer {
+    border-top: 1px solid var(--border); padding: 18px 40px 24px;
+    background: var(--bg);
+  }
+  .composer-inner {
+    display: flex; gap: 10px; align-items: flex-end;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 8px 8px 16px;
+  }
+  .composer textarea {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text); font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; resize: none; padding: 8px 0; max-height: 140px;
+  }
+  .send-btn {
+    background: var(--ok); color: #0B0E14; border: none;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;
+    padding: 10px 16px; border-radius: 6px; cursor: pointer;
+  }
+  .send-btn:disabled { opacity: 0.4; cursor: default; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  .loading-dots span {
+    display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--muted); margin-right: 4px;
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-name">SENTINEL</div>
+        <div class="brand-sub">Incident knowledge console</div>
+      </div>
+    </div>
+
+    <div class="status-block">
+      <div class="status-row"><span>llm_provider</span><span id="stat-llm">—</span></div>
+      <div class="status-row"><span>embedding</span><span id="stat-emb">—</span></div>
+      <div class="status-row"><span>prompt_version</span><span id="stat-prompt">—</span></div>
+      <div class="status-row"><span>api</span><span id="stat-api">connecting…</span></div>
+    </div>
+
+    <div>
+      <div class="examples-title">Try asking</div>
+      <button class="example-q" data-q="The API is returning 502s and pods keep restarting, what should I check first?">The API is returning 502s and pods keep restarting, what should I check first?</button>
+      <button class="example-q" data-q="Our database connection pool is exhausted during peak traffic. What's the remediation?">DB connection pool exhausted at peak traffic — remediation?</button>
+      <button class="example-q" data-q="What's the maximum retry backoff for the notifications API?">Max retry backoff for the notifications API?</button>
+      <button class="example-q" data-q="Can you approve my PTO request for next week?">Can you approve my PTO request? (out of scope)</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="thread" id="thread">
+      <div class="empty-state" id="empty-state">
+        <h1>Ask about an incident, runbook, or API.</h1>
+        <p>Sentinel answers only from indexed runbooks, postmortems, and API docs, with a citation on every claim. If the knowledge base doesn't cover it, it says so instead of guessing.</p>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <textarea id="input" rows="1" placeholder="Describe the incident or ask a question…"></textarea>
+        <button class="send-btn mono" id="send-btn">ASK</button>
+      </div>
+      <div class="hint">Every answer is grounded in retrieved context and cited by chunk. Ungrounded or low-confidence answers are flagged, not hidden.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = window.location.origin;
+  const thread = document.getElementById('thread');
+  const emptyState = document.getElementById('empty-state');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send-btn');
+
+  async function loadHealth() {
+    try {
+      const res = await fetch(`${API_BASE}/health`);
+      const data = await res.json();
+      document.getElementById('stat-llm').textContent = data.llm_provider;
+      document.getElementById('stat-emb').textContent = data.embedding_provider;
+      document.getElementById('stat-prompt').textContent = data.prompt_version;
+      document.getElementById('stat-api').textContent = 'online';
+      document.getElementById('stat-api').style.color = 'var(--ok)';
+    } catch (e) {
+      document.getElementById('stat-api').textContent = 'offline';
+    }
+  }
+  loadHealth();
+
+  document.querySelectorAll('.example-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      input.value = btn.dataset.q;
+      ask();
+    });
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      ask();
+    }
+  });
+  sendBtn.addEventListener('click', ask);
+
+  function addUserMessage(text) {
+    emptyState.remove();
+    const el = document.createElement('div');
+    el.className = 'msg-user';
+    el.textContent = text;
+    thread.appendChild(el);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  function addLoading() {
+    const el = document.createElement('div');
+    el.className = 'msg-block';
+    el.id = 'loading-msg';
+    el.innerHTML = `<div class="msg-header">SENTINEL · retrieving &amp; generating</div>
+      <div class="loading-dots"><span></span><span></span><span></span></div>`;
+    thread.appendChild(el);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  function renderAnswer(data) {
+    document.getElementById('loading-msg')?.remove();
+    const el = document.createElement('div');
+    let cls = 'msg-block';
+    let tag = `<span class="tag ok">GROUNDED</span>`;
+    if (data.refused) {
+      cls += ' refused';
+      tag = `<span class="tag warn">REFUSED</span>`;
+    } else if (!data.grounded) {
+      cls += ' ungrounded';
+      tag = `<span class="tag danger">UNGROUNDED — VERIFY</span>`;
+    }
+    el.className = cls;
+
+    const citationsHtml = data.citations.length
+      ? `<div class="citations">${data.citations.map(c =>
+          `<span class="citation-chip">[${c.chunk_id}] <span class="src">${c.title} › ${c.section}</span></span>`
+        ).join('')}</div>`
+      : '';
+
+    el.innerHTML = `
+      <div class="msg-header">
+        SENTINEL ${tag}
+        <span>confidence ${data.confidence.toFixed(3)}</span>
+        <span>${data.latency_ms.total_ms ?? data.latency_ms.retrieval_ms}ms</span>
+        <span>trace ${data.trace_id}</span>
+      </div>
+      <div class="msg-body">${escapeHtml(data.answer)}</div>
+      ${citationsHtml}
+    `;
+    thread.appendChild(el);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function ask() {
+    const question = input.value.trim();
+    if (!question) return;
+    addUserMessage(question);
+    input.value = '';
+    sendBtn.disabled = true;
+    addLoading();
+
+    try {
+      const res = await fetch(`${API_BASE}/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderAnswer(data);
+    } catch (e) {
+      document.getElementById('loading-msg')?.remove();
+      const el = document.createElement('div');
+      el.className = 'msg-block ungrounded';
+      el.innerHTML = `<div class="msg-header">ERROR</div><div class="msg-body">Could not reach Sentinel API: ${escapeHtml(e.message)}</div>`;
+      thread.appendChild(el);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>
