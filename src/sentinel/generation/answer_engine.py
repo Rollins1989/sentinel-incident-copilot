@@ -63,7 +63,7 @@ class AnswerEngine:
             retrieved = self.retriever.retrieve(question)
         latencies["retrieval_ms"] = t_retrieve.elapsed_ms
 
-        decision = evaluate_refusal(retrieved)
+        decision = evaluate_refusal(retrieved, question)
         if decision.should_refuse:
             log.info(
                 "answer.refused",

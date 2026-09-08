@@ -1,16 +1,10 @@
 """
-Refusal policy.
-
-Applied BEFORE calling the LLM at all: if the top fused retrieval score is
-below MIN_CONFIDENCE, the corpus almost certainly doesn't cover the
-question, so we refuse deterministically instead of letting the model try
-to answer from thin context and rationalize an unsupported remediation
-step. This saves a generation call on the empty-corpus case and, more
-importantly, removes the failure mode entirely rather than mitigating it
-after the fact.
+Deterministic refusal policy for out-of-scope questions.
 """
+
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from sentinel.config import settings
@@ -32,12 +26,130 @@ REFUSAL_MESSAGE = (
 )
 
 
-def evaluate_refusal(retrieved: list[RetrievedChunk]) -> RefusalDecision:
+# Words that strongly indicate Sentinel's incident-response domain.
+DOMAIN_TERMS = {
+    "api",
+    "service",
+    "server",
+    "database",
+    "db",
+    "pod",
+    "pods",
+    "kubernetes",
+    "deploy",
+    "deployment",
+    "crashloopbackoff",
+    "incident",
+    "outage",
+    "error",
+    "errors",
+    "502",
+    "503",
+    "latency",
+    "traffic",
+    "request",
+    "requests",
+    "retry",
+    "retries",
+    "backoff",
+    "webhook",
+    "payment",
+    "provider",
+    "billing",
+    "checkout",
+    "notification",
+    "search",
+    "connection",
+    "connections",
+    "pool",
+    "authentication",
+    "authenticate",
+    "token",
+    "api-key",
+    "rate",
+    "limit",
+    "remediation",
+    "diagnostic",
+    "root",
+    "cause",
+    "postmortem",
+    "runbook",
+}
+
+
+def _has_domain_signal(question: str) -> bool:
+    """Return True when the question contains a meaningful technical signal."""
+    words = set(re.findall(r"[a-z0-9_-]+", question.lower()))
+    return bool(words & DOMAIN_TERMS)
+
+OUT_OF_SCOPE_TERMS = {
+    "pto",
+    "vacation",
+    "leave",
+    "holiday",
+    "salary",
+    "payroll",
+    "hiring",
+    "interview",
+    "performance",
+    "promotion",
+    "hr",
+}
+
+
+def _is_obviously_out_of_scope(question: str) -> bool:
+    """Reject requests that clearly belong to unrelated business domains."""
+    words = set(re.findall(r"[a-z0-9_-]+", question.lower()))
+    return bool(words & OUT_OF_SCOPE_TERMS)
+
+def evaluate_refusal(
+    retrieved: list[RetrievedChunk],
+    question: str | None = None,
+) -> RefusalDecision:
     if not retrieved:
-        return RefusalDecision(should_refuse=True, reason="no_chunks_retrieved", top_score=0.0)
+        return RefusalDecision(
+            should_refuse=True,
+            reason="no_chunks_retrieved",
+            top_score=0.0,
+        )
+
     top_score = retrieved[0].fused_score
+
     if top_score < settings.min_confidence:
         return RefusalDecision(
-            should_refuse=True, reason="below_confidence_threshold", top_score=top_score
+            should_refuse=True,
+            reason="below_confidence_threshold",
+            top_score=top_score,
         )
-    return RefusalDecision(should_refuse=False, reason=None, top_score=top_score)
+
+    # If we know the question, reject questions that have no
+    # meaningful Sentinel/incident-response domain signal.
+    if question is not None and (
+        _is_obviously_out_of_scope(question)
+        or not _has_domain_signal(question)
+    ):
+        return RefusalDecision(
+            should_refuse=True,
+            reason="out_of_scope",
+            top_score=top_score,
+        )
+
+    # Weak evidence from only one retrieval method is not sufficient.
+    top = retrieved[0]
+    appears_in_both = (
+        top.dense_rank is not None
+        and top.sparse_rank is not None
+    )
+
+    if not appears_in_both and top_score < 0.18:
+        return RefusalDecision(
+            should_refuse=True,
+            reason="insufficient_relevance_evidence",
+            top_score=top_score,
+        )
+
+    return RefusalDecision(
+        should_refuse=False,
+        reason=None,
+        top_score=top_score,
+    )
