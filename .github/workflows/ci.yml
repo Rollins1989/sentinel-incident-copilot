@@ -6,8 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  test-and-eval:
+  test:
     runs-on: ubuntu-latest
     env:
       LLM_PROVIDER: mock
@@ -15,31 +18,20 @@ jobs:
       CHROMA_PERSIST_DIR: .chroma_ci
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
-
+          cache: pip
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Run unit tests
-        run: |
-          PYTHONPATH=src pytest tests/ -v
-
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Lint
+        run: ruff check src tests scripts
+      - name: Unit tests
+        run: PYTHONPATH=src pytest tests/ -v
       - name: Ingest seed corpus
-        run: |
-          PYTHONPATH=src python scripts/ingest_seed_data.py
-
-      - name: Run eval gate
-        run: |
-          PYTHONPATH=src python -m sentinel.eval.run_eval
-        # Fails the build (non-zero exit) if retrieval recall, refusal accuracy,
-        # or groundedness rate drop below the thresholds in eval/run_eval.py.
-        # This is the actual regression gate for prompt/retrieval/model changes.
-
+        run: PYTHONPATH=src python scripts/ingest_seed_data.py
+      - name: Eval gate
+        run: PYTHONPATH=src python -m sentinel.eval.run_eval
       - name: Upload eval report
         if: always()
         uses: actions/upload-artifact@v4

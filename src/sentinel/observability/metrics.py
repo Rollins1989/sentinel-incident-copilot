@@ -1,11 +1,4 @@
-"""
-Lightweight metrics store.
-
-Records one row per query: latency breakdown, retrieved chunk ids, confidence
-score, guardrail decision, token counts, and estimated cost. Backed by SQLite
-so it works with zero extra infrastructure; swap for a Prometheus pushgateway
-or a warehouse sink in a real deployment without touching call sites.
-"""
+"""SQLite-backed query metrics and operational summaries."""
 from __future__ import annotations
 
 import json
@@ -13,28 +6,16 @@ import sqlite3
 import time
 from contextlib import contextmanager
 from pathlib import Path
-
 from sentinel.config import settings
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS query_events (
-    trace_id TEXT PRIMARY KEY,
-    ts REAL,
-    question TEXT,
-    prompt_version TEXT,
-    retrieval_ms REAL,
-    generation_ms REAL,
-    total_ms REAL,
-    confidence REAL,
-    refused INTEGER,
-    n_chunks_retrieved INTEGER,
-    retrieved_chunk_ids TEXT,
-    input_tokens INTEGER,
-    output_tokens INTEGER,
-    estimated_cost_usd REAL
+    trace_id TEXT PRIMARY KEY, ts REAL, question TEXT, prompt_version TEXT,
+    retrieval_ms REAL, generation_ms REAL, total_ms REAL, confidence REAL,
+    refused INTEGER, n_chunks_retrieved INTEGER, retrieved_chunk_ids TEXT,
+    input_tokens INTEGER, output_tokens INTEGER, estimated_cost_usd REAL
 );
 """
-
 
 @contextmanager
 def _conn():
@@ -47,37 +28,35 @@ def _conn():
     finally:
         conn.close()
 
-
 def record_query_event(**fields) -> None:
     fields.setdefault("ts", time.time())
-    if "retrieved_chunk_ids" in fields and isinstance(fields["retrieved_chunk_ids"], list):
+    if isinstance(fields.get("retrieved_chunk_ids"), list):
         fields["retrieved_chunk_ids"] = json.dumps(fields["retrieved_chunk_ids"])
     with _conn() as conn:
         cols = ", ".join(fields.keys())
         placeholders = ", ".join("?" for _ in fields)
-        conn.execute(
-            f"INSERT OR REPLACE INTO query_events ({cols}) VALUES ({placeholders})",
-            list(fields.values()),
-        )
-
+        conn.execute(f"INSERT OR REPLACE INTO query_events ({cols}) VALUES ({placeholders})", list(fields.values()))
 
 def recent_events(limit: int = 50) -> list[dict]:
     with _conn() as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT * FROM query_events ORDER BY ts DESC LIMIT ?", (limit,)
-        ).fetchall()
-        return [dict(r) for r in rows]
+        rows = conn.execute("SELECT * FROM query_events ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(row) for row in rows]
 
+def metrics_summary(limit: int = 50) -> dict:
+    events = recent_events(limit)
+    if not events:
+        return {"queries": 0, "refusal_rate": 0.0, "avg_latency_ms": 0.0, "estimated_cost_usd": 0.0}
+    total = len(events)
+    return {
+        "queries": total,
+        "refusal_rate": round(sum(int(e["refused"]) for e in events) / total, 4),
+        "avg_latency_ms": round(sum(float(e["total_ms"] or 0) for e in events) / total, 2),
+        "estimated_cost_usd": round(sum(float(e["estimated_cost_usd"] or 0) for e in events), 6),
+    }
 
-# Rough per-1M-token pricing used only for local cost visibility (not billing-accurate).
 _PRICE_PER_M_INPUT = 3.00
 _PRICE_PER_M_OUTPUT = 15.00
 
-
 def estimate_cost_usd(input_tokens: int, output_tokens: int) -> float:
-    return round(
-        (input_tokens / 1_000_000) * _PRICE_PER_M_INPUT
-        + (output_tokens / 1_000_000) * _PRICE_PER_M_OUTPUT,
-        6,
-    )
+    return round((input_tokens / 1_000_000) * _PRICE_PER_M_INPUT + (output_tokens / 1_000_000) * _PRICE_PER_M_OUTPUT, 6)
