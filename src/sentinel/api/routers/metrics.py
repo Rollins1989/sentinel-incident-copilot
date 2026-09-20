@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
-
 from sentinel.observability.metrics import metrics_summary
 
 
