@@ -10,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fastapi.testclient import TestClient
 
-from sentinel.ingestion.pipeline import run_ingestion
 from sentinel.api.main import app
+from sentinel.ingestion.pipeline import run_ingestion
 
 client = TestClient(app)
 
@@ -27,7 +27,10 @@ def test_health():
 
 
 def test_ask_in_scope_question_returns_answer():
-    res = client.post("/ask", json={"question": "The pod keeps restarting with OOMKilled, what should I do?"})
+    res = client.post(
+        "/ask",
+        json={"question": "The pod keeps restarting with OOMKilled, what should I do?"},
+    )
     assert res.status_code == 200
     data = res.json()
     assert "trace_id" in data
@@ -35,10 +38,12 @@ def test_ask_in_scope_question_returns_answer():
 
 
 def test_ask_out_of_scope_question_is_refused_or_flagged():
-    res = client.post("/ask", json={"question": "xyzzy unrelated nonsense query zzqx"})
+    res = client.post(
+        "/ask",
+        json={"question": "xyzzy unrelated nonsense query zzqx"},
+    )
     assert res.status_code == 200
     data = res.json()
-    # Either the confidence guardrail refuses it, or it comes back with low confidence.
     assert data["refused"] is True or data["confidence"] < 0.5
 
 
