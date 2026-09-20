@@ -1,11 +1,4 @@
-"""
-Dense vector store wrapper around ChromaDB.
-
-Chosen over a hosted vector DB because Sentinel targets a single-team,
-self-hosted deployment where "docker compose up" should be the entire
-setup story — no external vector DB account or network dependency for
-the retrieval-critical path.
-"""
+"""Dense vector store wrapper around ChromaDB."""
 from __future__ import annotations
 
 import chromadb
@@ -18,21 +11,28 @@ class VectorStore:
     def __init__(self):
         self.client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
         self.collection = self.client.get_or_create_collection(
-            name=settings.chroma_collection, metadata={"hnsw:space": "cosine"}
+            name=settings.chroma_collection,
+            metadata={"hnsw:space": "cosine"},
         )
 
     def reset(self) -> None:
-        try:
+        collections = self.client.list_collections()
+        names = {
+            collection.name if hasattr(collection, "name") else str(collection)
+            for collection in collections
+        }
+        if settings.chroma_collection in names:
             self.client.delete_collection(settings.chroma_collection)
-        except Exception:
-            pass
+
         self.collection = self.client.get_or_create_collection(
-            name=settings.chroma_collection, metadata={"hnsw:space": "cosine"}
+            name=settings.chroma_collection,
+            metadata={"hnsw:space": "cosine"},
         )
 
     def add(self, chunks: list[Chunk], vectors: list[list[float]]) -> None:
         if not chunks:
             return
+
         self.collection.add(
             ids=[c.chunk_id for c in chunks],
             embeddings=vectors,
@@ -52,10 +52,13 @@ class VectorStore:
     def query(self, query_vector: list[float], top_k: int) -> list[dict]:
         if self.collection.count() == 0:
             return []
-        res = self.collection.query(query_embeddings=[query_vector], n_results=min(top_k, self.collection.count()))
+
+        res = self.collection.query(
+            query_embeddings=[query_vector],
+            n_results=min(top_k, self.collection.count()),
+        )
         out = []
         for i in range(len(res["ids"][0])):
-            # Chroma cosine "distance" -> similarity
             distance = res["distances"][0][i]
             similarity = 1 - distance
             out.append(
