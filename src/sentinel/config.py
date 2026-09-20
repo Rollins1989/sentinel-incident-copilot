@@ -2,11 +2,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
     app_name: str = "Sentinel"
     app_version: str = "0.2.0"
     environment: str = "development"
@@ -29,8 +37,12 @@ class Settings(BaseSettings):
     chunk_size_tokens: int = Field(default=300, ge=50, le=2000)
     chunk_overlap_tokens: int = Field(default=60, ge=0, le=500)
     prompt_version: str = "v1"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:8000", "http://127.0.0.1:8000"])
-    allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1", "testserver"])
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:8000", "http://127.0.0.1:8000"]
+    )
+    allowed_hosts: list[str] = Field(
+        default_factory=lambda: ["localhost", "127.0.0.1", "testserver"]
+    )
     admin_token: str | None = None
     data_dir: Path = Path("data")
     experiments_db: Path = Path("experiments.db")
@@ -42,5 +54,6 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
 
 settings = Settings()
