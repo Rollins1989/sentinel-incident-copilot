@@ -11,13 +11,13 @@ behavior in an LLM system: the prompt.
 from __future__ import annotations
 
 import hashlib
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 
-@lru_cache(maxsize=None)
+@cache
 def load_system_prompt(version: str) -> tuple[str, str]:
     """Returns (prompt_text, content_hash) for a given prompt version."""
     path = _PROMPTS_DIR / f"system_{version}.md"
