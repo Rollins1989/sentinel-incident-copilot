@@ -277,7 +277,7 @@
 
     const citationsHtml = data.citations.length
       ? `<div class="citations">${data.citations.map(c =>
-          `<span class="citation-chip">[${c.chunk_id}] <span class="src">${c.title} › ${c.section}</span></span>`
+          `<span class="citation-chip">[${escapeHtml(c.chunk_id)}] <span class="src">${escapeHtml(c.title)} › ${escapeHtml(c.section)}</span></span>`
         ).join('')}</div>`
       : '';
 
@@ -303,7 +303,7 @@
 
   async function ask() {
     const question = input.value.trim();
-    if (!question) return;
+    if (!question || sendBtn.disabled) return;
     addUserMessage(question);
     input.value = '';
     sendBtn.disabled = true;
@@ -315,8 +315,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (!res.ok) throw new Error(data.detail?.message || data.detail || `HTTP ${res.status}`);
       renderAnswer(data);
     } catch (e) {
       document.getElementById('loading-msg')?.remove();
