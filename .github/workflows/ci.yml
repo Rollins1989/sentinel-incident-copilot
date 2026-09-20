@@ -17,8 +17,8 @@ jobs:
       EMBEDDING_PROVIDER: hashing
       CHROMA_PERSIST_DIR: .chroma_ci
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -34,7 +34,7 @@ jobs:
         run: PYTHONPATH=src python -m sentinel.eval.run_eval
       - name: Upload eval report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-report
           path: eval_report.json
