@@ -1,0 +1,8 @@
+# Default owner for repository changes.
+* @Rollins1989
+
+# Security-sensitive surfaces.
+.github/workflows/* @Rollins1989
+src/sentinel/api/security.py @Rollins1989
+src/sentinel/guardrails/* @Rollins1989
+SECURITY.md @Rollins1989
