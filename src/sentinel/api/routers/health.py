@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
-
 from sentinel.config import settings
 from sentinel.retrieval.bm25_index import BM25Index
 from sentinel.retrieval.vector_store import VectorStore
