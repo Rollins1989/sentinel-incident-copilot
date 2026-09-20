@@ -1,18 +1,21 @@
-import os
 import sys
 from pathlib import Path
 
-os.environ["ADMIN_TOKEN"] = "test-secret"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from fastapi.testclient import TestClient
+
 from sentinel.api.main import app
+from sentinel.config import settings
 
 client = TestClient(app)
 
-def test_admin_token_rejects_missing_token():
+
+def test_admin_token_rejects_missing_token(monkeypatch):
+    monkeypatch.setattr(settings, "admin_token", "test-secret")
     response = client.post("/ingest")
     assert response.status_code == 401
+
 
 def test_security_headers_are_present():
     response = client.get("/health")
